@@ -1,0 +1,629 @@
+//This file servers as a comprehensive plan for building the ToolShelf MVP, detailing the project overview, core principles, feature definitions, system design, database schema, development plan, and leveraging AI in development.
+The first step in this will be to build the next.js frontend application using Gemini CLI AI. 
+
+Project Overview & Core Principles
+
+Goal: Launch an MVP of ToolShelf in ~2 weeks, providing a centralized, searchable, team-curated directory of developer tools, leveraging your master catalog and empowering team admins.
+
+Core Principles for Development:
+
+Simplicity & Speed: Prioritize getting the core value out quickly. Don't over-engineer the MVP.
+
+Modularity: Design components and code to be reusable and easily extendable for future features.
+
+Scalability: Choose technologies and design patterns that can scale with user growth and feature expansion.
+
+Solo Developer Efficiency: Automate where possible, rely on robust frameworks, and leverage AI for repetitive or less familiar tasks (especially frontend).
+
+User-Centric: Focus on a clean UI and intuitive user experience for finding and managing tools.
+
+Phase 1: MVP Feature Definition
+The MVP will focus on the absolute core functionality to validate the product idea and gather initial user feedback, while laying the groundwork for future features.
+
+Mandatory MVP Features:
+
+User Authentication & Authorization:
+
+Basic user sign-up (email/password), login, logout.
+
+Social logins (e.g., Google, GitHub) via Supabase Auth for ease of use.
+
+Differentiate between standard users (team members) and team admins.
+
+Team Creation & Management:
+
+Ability for a user to create a "Team" (this user becomes the Team Admin).
+
+Ability for Team Admins to invite/add other users to their team.
+
+Ability for Team Admins to assign "Editor" or "Viewer" roles to team members.
+
+Master Tool Catalog (Platform-managed):
+
+A pre-populated, comprehensive list of commonly used developer tools (this is your curated list).
+
+Each tool entry includes: Title, Description, Categories, Tags, External Link, and potentially a placeholder for "User Reviews."
+
+This catalog will be managed by you (the platform owner) and serve as the source for team admins.
+
+Team-based Tool Shelves:
+
+Each team gets its own private "shelf" (workspace).
+
+Team Admins can browse the Master Tool Catalog and "add" tools to their team's shelf.
+
+Team Admins/Editors can also add custom tools specific to their team (not from the master catalog). These custom tools would have the same fields (Title, Description, Category, External Link, Tags).
+
+Display of tools on the shelf with Title, Description, Categories, Tags, and a clickable External Link.
+
+Search & Filtering:
+
+Fast fuzzy search across tool titles and descriptions within a team's shelf.
+
+Filtering by categories and tags within a team's shelf.
+
+User Experience Features:
+
+Simple, Clean UI: Minimal distractions, intuitive navigation.
+
+"Recently Used" section: A small display of tools recently accessed by the individual user within their current team.
+
+"Pinned Tools": Ability for individual users to "pin" frequently used tools to the top of their shelf.
+
+Future Considerations (Design for these, but don't implement in MVP):
+
+User Reviews/Ratings: Allow team members to leave reviews/ratings on tools within their team's shelf (requires moderation strategy later).
+
+Light Analytics on Tool Usage: Track clicks on external links within a team's shelf (requires careful privacy consideration).
+
+Feedback Form: For users to suggest new tools to you for inclusion in the master catalog.
+
+Tool Versioning/Updates: How to manage updates to external tools in the master catalog.
+
+Integrations: Basic integrations (e.g., Slack notifications for new tools added).
+
+Phase 2: High-Level System Design
+ToolShelf will follow a modern web application architecture, primarily a Single-Page Application (SPA) frontend interacting with a backend service (Supabase) via APIs.
+
+Core Components:
+
+Frontend (Next.js Application):
+
+Purpose: Handles all user interface rendering, user interactions, routing, and data fetching from the backend.
+
+Technologies: Next.js (React), Tailwind CSS, potentially a component library like shadcn/ui or Radix UI.
+
+Interaction: Communicates with Supabase using its JavaScript client library, making API calls (REST/GraphQL via Supabase PostgREST/GraphQL APIs, or direct RPC calls to database functions).
+
+Deployment: Vercel.
+
+Backend (Supabase - BaaS/PostgreSQL):
+
+Purpose: The core data store, authentication service, and API layer. It manages users, teams, tools (master catalog and team-specific), and roles.
+
+Technologies: PostgreSQL database, Supabase Auth, Supabase auto-generated APIs (PostgREST for REST, GraphQL API, Realtime API), Supabase Edge Functions (for any custom backend logic not handled by RLS or database functions).
+
+Data Model: Stores all application data.
+
+Authentication: Manages user registration, login, and sessions.
+
+Authorization (Row Level Security - RLS): Crucial for ensuring that users can only access data relevant to their team and their role within that team.
+
+Deployment: Managed by Supabase.
+
+External Third-Party Tools:
+
+Purpose: The actual developer tools (e.g., JSON formatter website, online regex tester) that ToolShelf links to.
+
+Interaction: Users are redirected from ToolShelf to these external websites. ToolShelf does not host these tools.
+
+High-Level Data Flow:
+
+User Access: User navigates to toolshelf.tech (Vercel deployment).
+
+Authentication:
+
+User signs up/logs in via Frontend.
+
+Frontend sends credentials to Supabase Auth.
+
+Supabase authenticates user and returns a JWT (JSON Web Token).
+
+Frontend stores the JWT and uses it for subsequent authenticated requests.
+
+Team Operations:
+
+Create Team: Frontend sends request to Supabase to create a new team entry.
+
+Invite/Add Member: Team Admin uses Frontend to send invite to Supabase; Supabase manages user associations.
+
+Role Management: Team Admin uses Frontend to update user roles in Supabase.
+
+Tool Management (Team Shelf):
+
+Browse Master Catalog: Frontend fetches a list of tools from the Master Tool Catalog in Supabase.
+
+Add Tool to Shelf: Team Admin/Editor selects a tool from the Master Catalog or creates a Custom Tool. Frontend sends data to Supabase to associate the tool with the specific team's shelf.
+
+Display Shelf: Frontend fetches tools associated with the current user's team from Supabase.
+
+Search & Filter:
+
+Frontend sends search queries/filters to Supabase.
+
+Supabase performs the query on the team's tool data and returns results.
+
+Redirect to External Tool: User clicks on a tool link; Frontend redirects the user to the external_link stored in Supabase.
+
+Recently Used/Pinned: Frontend updates recently_used and pinned status for the current user in Supabase.
+
+Phase 3: Low-Level Design & Database Design
+This phase gets into the specifics of your data structure and how your application components will interact.
+
+Database Design (Supabase PostgreSQL Schema)
+You'll define tables, columns, relationships, and essential Row Level Security (RLS) policies.
+
+Tables:
+
+users (Supabase Auth handles this table, but you might extend it)
+
+id (UUID, Primary Key, from Supabase Auth)
+
+email (Text, Unique)
+
+created_at (Timestamp with timezone, Default: now())
+
+name (Text, Optional)
+
+avatar_url (Text, Optional)
+
+(Supabase Auth automatically manages other auth-related fields)
+
+teams
+
+id (UUID, Primary Key, Default: gen_random_uuid())
+
+name (Text, Not Null, Unique within platform)
+
+created_at (Timestamp with timezone, Default: now())
+
+owner_id (UUID, Foreign Key to users.id, Not Null) - The user who created the team.
+
+team_members (Junction table for users and teams)
+
+id (UUID, Primary Key, Default: gen_random_uuid())
+
+team_id (UUID, Foreign Key to teams.id, Not Null)
+
+user_id (UUID, Foreign Key to users.id, Not Null)
+
+role (Text, Not Null, Enum: 'admin', 'editor', 'viewer', Default: 'viewer')
+
+created_at (Timestamp with timezone, Default: now())
+
+updated_at (Timestamp with timezone, Default: now())
+
+UNIQUE(team_id, user_id) - A user can only be in a team once.
+
+master_tools (Your platform's master catalog of tools)
+
+id (UUID, Primary Key, Default: gen_random_uuid())
+
+title (Text, Not Null)
+
+description (Text, Not Null)
+
+external_link (Text, Not Null)
+
+category (Text, Not Null) - e.g., 'JSON Tools', 'Regex', 'Testing'.
+
+tags (Text[], Array of text, Optional) - e.g., ['formatter', 'parser', 'online'].
+
+logo_url (Text, Optional)
+
+created_at (Timestamp with timezone, Default: now())
+
+updated_at (Timestamp with timezone, Default: now())
+
+is_approved (Boolean, Default: false) - For your internal management.
+
+is_active (Boolean, Default: true) - To easily disable tools.
+
+search_vector (TSVECTOR) - For full-text search (generated via trigger).
+
+team_shelf_tools (Tools added by specific teams, linked to master_tools or custom)
+
+id (UUID, Primary Key, Default: gen_random_uuid())
+
+team_id (UUID, Foreign Key to teams.id, Not Null)
+
+master_tool_id (UUID, Foreign Key to master_tools.id, Nullable) - If from master catalog.
+
+custom_title (Text, Nullable) - If a custom tool.
+
+custom_description (Text, Nullable)
+
+custom_external_link (Text, Nullable)
+
+custom_category (Text, Nullable)
+
+custom_tags (Text[], Nullable)
+
+created_at (Timestamp with timezone, Default: now())
+
+added_by_user_id (UUID, Foreign Key to users.id, Not Null)
+
+is_pinned (Boolean, Default: false) - Specific to a user (see next table for user-specific pinning).
+
+search_vector (TSVECTOR) - For full-text search.
+
+CONSTRAINT check_tool_source CHECK ( (master_tool_id IS NOT NULL AND custom_title IS NULL) OR (master_tool_id IS NULL AND custom_title IS NOT NULL) ) - Ensures tool is either from master or custom.
+
+UNIQUE(team_id, master_tool_id) - Prevents duplicate master tools on a shelf.
+
+UNIQUE(team_id, custom_external_link) - Prevents duplicate custom tools on a shelf.
+
+user_tool_preferences (For recently_used and pinned specific to a user within a team)
+
+id (UUID, Primary Key, Default: gen_random_uuid())
+
+user_id (UUID, Foreign Key to users.id, Not Null)
+
+team_shelf_tool_id (UUID, Foreign Key to team_shelf_tools.id, Not Null)
+
+last_used_at (Timestamp with timezone, Optional)
+
+is_pinned (Boolean, Default: false) - User-specific pinning.
+
+UNIQUE(user_id, team_shelf_tool_id) - A user has one preference entry per tool per shelf.
+
+Row Level Security (RLS) Policies (Crucial for Supabase):
+
+teams table:
+
+SELECT: Any user can see teams they are a member of.
+
+INSERT: Authenticated users can create new teams.
+
+UPDATE: Team admins can update their team details.
+
+DELETE: Team owners/admins can delete their team.
+
+team_members table:
+
+SELECT: Users can see members of teams they belong to.
+
+INSERT: Team admins can add new members.
+
+UPDATE: Team admins can update member roles.
+
+DELETE: Team admins can remove members.
+
+master_tools table:
+
+SELECT: All authenticated users can read (this is your public catalog).
+
+INSERT/UPDATE/DELETE: Only your (platform owner) role.
+
+team_shelf_tools table:
+
+SELECT: Users can see tools on shelves of teams they belong to.
+
+INSERT: Team admins/editors can add tools to their team's shelf.
+
+UPDATE: Team admins/editors can update tools on their team's shelf.
+
+DELETE: Team admins can remove tools from their team's shelf.
+
+user_tool_preferences table:
+
+SELECT/INSERT/UPDATE/DELETE: Users can only manage their own preferences for tools within teams they belong to.
+
+Low-Level API Calls & Logic (Supabase Client-Side)
+You'll use the Supabase JavaScript client library (@supabase/supabase-js) in your Next.js application.
+
+Authentication:
+
+JavaScript
+
+// Sign up
+const { user, error } = await supabase.auth.signUp({ email, password });
+// Log in
+const { user, error } = await supabase.auth.signInWithPassword({ email, password });
+// Social Login
+await supabase.auth.signInWithOAuth({ provider: 'google' });
+// Get current session
+const { data: { session } } = await supabase.auth.getSession();
+Team Management:
+
+JavaScript
+
+// Create Team (called by logged-in user)
+await supabase.from('teams').insert({ name: 'My New Team', owner_id: session.user.id });
+// Get Teams for current user
+await supabase.from('team_members').select('team_id, teams(id, name, owner_id), role').eq('user_id', session.user.id);
+// Add Team Member (by Admin)
+await supabase.from('team_members').insert({ team_id, user_id, role: 'viewer' });
+// Update Team Member Role (by Admin)
+await supabase.from('team_members').update({ role: 'admin' }).eq('id', memberId);
+Master Tool Catalog:
+
+JavaScript
+
+// Fetch all master tools (no RLS needed, as all users can see)
+await supabase.from('master_tools').select('*');
+// Search master tools (Supabase PostgREST supports text search)
+await supabase.from('master_tools').select('*').ilike('title', `%${searchTerm}%`);
+Team Shelf Tools:
+
+JavaScript
+
+// Add tool from master catalog to team shelf (by Admin/Editor)
+await supabase.from('team_shelf_tools').insert({ team_id, master_tool_id, added_by_user_id: session.user.id });
+// Add custom tool to team shelf (by Admin/Editor)
+await supabase.from('team_shelf_tools').insert({ team_id, custom_title: 'My Custom Tool', ..., added_by_user_id: session.user.id });
+// Get tools for current team (RLS will filter automatically)
+await supabase.from('team_shelf_tools').select('*, master_tools(*), team_members(users(name))').eq('team_id', currentTeamId);
+// Fuzzy search/filter on team shelf (using search_vector column)
+await supabase.from('team_shelf_tools').select('*').textSearch('search_vector', `'${searchTerm}'`);
+User Tool Preferences (recently_used, pinned):
+
+JavaScript
+
+// Pin/Unpin a tool for current user
+await supabase.from('user_tool_preferences').upsert({ user_id: session.user.id, team_shelf_tool_id: toolId, is_pinned: true });
+// Update last used timestamp
+await supabase.from('user_tool_preferences').upsert({ user_id: session.user.id, team_shelf_tool_id: toolId, last_used_at: new Date().toISOString() });
+// Get user's pinned tools for current team
+await supabase.from('user_tool_preferences').select('*, team_shelf_tools(*)').eq('user_id', session.user.id).eq('is_pinned', true).eq('team_shelf_tools.team_id', currentTeamId);
+Phase 4: Development Plan
+This phase outlines the practical steps for coding and building your application.
+
+4.1. Choose / Confirm Tech Stack & Core Libraries
+Frontend Framework: Next.js (with React)
+
+Database & Auth (BaaS): Supabase (PostgreSQL)
+
+Styling: Tailwind CSS
+
+ORM/Type Safety: Prisma (for client-side type generation from Supabase schema via introspection, or direct Supabase client types) or Drizzle ORM (if you prefer that style of query builder).
+
+Authentication Library: @supabase/supabase-js (Supabase's official client library which includes Auth).
+
+Validation: Zod (for defining schemas and validating input, e.g., forms).
+
+Data Fetching/State Management (Optional but Recommended): React Query (TanStack Query) for managing server state, caching, and background re-fetching. This improves UX and simplifies data flow.
+
+UI Components (Optional): shadcn/ui or Radix UI (headless UI components) combined with Tailwind. This allows you to build a clean UI rapidly without starting from scratch.
+
+Fuzzy Search: PostgreSQL's built-in full-text search capabilities (using TSVECTOR and ts_query on the search_vector column) via Supabase.
+
+4.2. Development Environment Setup
+Node.js & npm/Yarn/pnpm: Ensure you have the latest stable version.
+
+Git: For version control.
+
+Supabase CLI: npm i -g supabase for local development, schema migrations, and pushing changes.
+
+VS Code (Recommended IDE): With extensions for React, Tailwind CSS IntelliSense, Prisma, ESLint, Prettier.
+
+Next.js Project Init: npx create-next-app@latest toolshelf-app --typescript --tailwind --eslint
+
+4.3. Folder Structure (Example for Next.js)
+toolshelf-app/
+├── public/                 # Static assets (images, fonts)
+├── src/
+│   ├── app/                # Next.js App Router (pages, layouts, API routes)
+│   │   ├── (auth)/         # Group auth-related pages (login, signup)
+│   │   │   ├── login/
+│   │   │   └── signup/
+│   │   ├── (dashboard)/    # Group main app features
+│   │   │   ├── layout.tsx
+│   │   │   ├── teams/
+│   │   │   │   ├── [teamId]/    # Dynamic route for a specific team's shelf
+│   │   │   │   │   ├── page.tsx    # Team Shelf view
+│   │   │   │   │   ├── add-tool/page.tsx # Add tool to shelf
+│   │   │   │   │   └── settings/page.tsx # Team settings
+│   │   │   ├── master-catalog/page.tsx # Master tool catalog browse
+│   │   │   └── page.tsx        # Dashboard home/team selection
+│   │   ├── api/             # Next.js API Routes (if needed, or use Supabase directly)
+│   │   │   └── auth/[...nextauth]/route.ts # For Next-Auth (if not using pure Supabase client)
+│   │   ├── layout.tsx       # Root layout
+│   │   └── page.tsx         # Root homepage
+│   ├── components/         # Reusable UI components (buttons, cards, forms)
+│   │   ├── ui/             # Shadcn/ui components
+│   │   └── common/         # Custom common components
+│   ├── lib/                # Utility functions, Supabase client setup
+│   │   ├── supabase.ts     # Supabase client initialization
+│   │   ├── auth.ts         # Auth helpers
+│   │   ├── utils.ts        # General utilities
+│   │   └── constants.ts    # Global constants
+│   ├── hooks/              # Custom React hooks (e.g., useAuth, useTeams)
+│   ├── types/              # TypeScript types (e.g., Tool, Team, User)
+│   ├── styles/             # Global styles (Tailwind CSS config)
+│   └── services/           # Data fetching logic (e.g., teamService.ts, toolService.ts)
+├── prisma/                 # Prisma schema (if using for type generation, even without full ORM)
+├── .env.local              # Environment variables
+├── next.config.mjs
+├── package.json
+├── postcss.config.js
+├── tailwind.config.ts
+├── tsconfig.json
+└── README.md
+4.4. Custom Code vs. Ready-to-Use Fragments
+Ready-to-Use Fragments:
+
+Supabase Client Library: Directly use supabase.auth for authentication, supabase.from() for database interactions.
+
+Tailwind CSS: Use utility classes directly.
+
+UI Components (shadcn/ui or Radix UI): Integrate pre-built UI components (buttons, forms, dialogs, dropdowns) and customize with Tailwind. This is a massive time-saver.
+
+Next.js Features: Leverage App Router, Server Components/Actions, API routes.
+
+@tabler/icons or lucide-react: For a good set of open-source icons.
+
+Custom Code:
+
+Core UI Layouts: Your main layout.tsx and dashboard layouts.
+
+Specific Page Logic: The unique logic for your team shelf display, search/filter implementation, "Add Tool" forms.
+
+Data Models & Types: Define your TypeScript interfaces and types based on your Supabase schema.
+
+Supabase RLS Policies: Crucial custom SQL to define who can access what data.
+
+Database Functions (Optional, for complex logic): Write custom SQL functions in Supabase for operations like atomically updating "recently used" or complex aggregations.
+
+Master Catalog Ingestion (Your Backend Task): Scripts or a simple UI to populate and manage your master_tools table.
+
+4.5. Modularity & Best Practices
+Component-Based: Break down your UI into small, reusable React components (components/).
+
+Service Layer: Create a services/ folder to abstract your data fetching logic from your UI components. Each service (e.g., teamService.ts, toolService.ts) would contain functions to interact with Supabase for specific data models.
+
+Hooks: Use custom React Hooks (hooks/) to encapsulate reusable UI logic or data fetching patterns.
+
+Utils: Place generic utility functions in lib/utils.ts.
+
+Type Definitions: Strictly use TypeScript to define types for all your data, API responses, and component props. This catches errors early and provides excellent developer experience.
+
+Environment Variables: Store sensitive information (Supabase URL, API Key) in .env.local and access them via process.env.NEXT_PUBLIC_... in Next.js.
+
+Error Handling: Implement consistent error handling for API calls and user input.
+
+Loading States: Show loading indicators for async operations to improve UX.
+
+Form Management: Use a library like React Hook Form with Zod for robust form validation.
+
+Phase 5: Development Sprints (MVP Focused)
+Sprint 1: Foundation (Days 1-4)
+
+Project Setup:
+
+Initialize Next.js project.
+
+Configure Tailwind CSS.
+
+Set up ESLint and Prettier.
+
+Integrate shadcn/ui or similar component library.
+
+Supabase Setup:
+
+Create new Supabase project.
+
+Define initial database schema (Users, Teams, TeamMembers, MasterTools, TeamShelfTools, UserToolPreferences tables).
+
+Implement basic RLS policies for users, teams, team_members (e.g., users can only view their own user data, create their own teams).
+
+Get Supabase API keys and set up lib/supabase.ts.
+
+Authentication Flow:
+
+Implement user sign-up and login pages using Supabase Auth (supabase.auth.signUp, signInWithPassword).
+
+Set up protected routes in Next.js (middleware or route guards) so only authenticated users can access the dashboard.
+
+Implement logout.
+
+Initial UI & Layouts:
+
+Design basic root layout and dashboard layout.
+
+Create placeholder pages for dashboard, team selection, and master catalog.
+
+Sprint 2: Core Team & Tool Management (Days 5-10)
+
+Team Creation & Membership:
+
+UI for users to create a new team.
+
+UI for Team Admins to view team members.
+
+UI/logic for Team Admins to add/invite other users to their team (simple email invite for MVP, actual invite flow later).
+
+Implement remaining RLS policies for team_members and teams to ensure proper access control.
+
+Master Tool Catalog Display:
+
+Display the master_tools list on a dedicated page/section.
+
+Implement basic search and filter for the master catalog.
+
+(Your initial task: Manually populate ~50-100 relevant tools into your master_tools table directly in Supabase for testing.)
+
+Team Shelf Functionality:
+
+UI to display tools on the current user's active team's shelf.
+
+UI for Team Admins/Editors to "Add Tool" from the Master Catalog to their team's shelf.
+
+UI for Team Admins/Editors to add "Custom Tools" directly to their team's shelf.
+
+Implement RLS policies for team_shelf_tools.
+
+Ensure clicking a tool redirects to its external_link.
+
+Sprint 3: Refinement & UX (Days 11-14)
+
+Search & Filter (Team Shelf):
+
+Implement fast fuzzy search on the current team's shelf.
+
+Implement filtering by categories and tags for the team shelf.
+
+Set up PostgreSQL full-text search (TSVECTOR) on relevant title, description, category, tags columns for both master_tools and team_shelf_tools.
+
+User Preferences:
+
+Implement "Recently Used" display (based on last_used_at in user_tool_preferences).
+
+Implement "Pinned Tools" functionality (toggling is_pinned in user_tool_preferences).
+
+UI Polish:
+
+Ensure simple, clean UI across all MVP features.
+
+Basic error messages and loading states.
+
+Responsiveness for common screen sizes.
+
+Deployment Prep:
+
+Configure Next.js project for Vercel deployment.
+
+Ensure Supabase project is ready for production (review RLS).
+
+Connect your toolshelf.tech domain to the Vercel deployment.
+
+Leveraging AI in Development
+AI can be a powerful co-pilot, especially with this detailed plan.
+
+Frontend UI Generation: Use AI tools (like Copilot, ChatGPT, or specialized UI generators) to quickly create boilerplate React components for forms (sign-up, add tool), layouts, tables, and cards. Provide clear instructions about the desired components, data fields, and Tailwind CSS classes.
+
+Database Schema & RLS Policies: Ask AI to generate initial SQL for your table schemas and RLS policies based on the descriptions provided above. Always review and test thoroughly.
+
+API Client Code: Given your Supabase schema, ask AI to generate basic CRUD (Create, Read, Update, Delete) functions using the Supabase JavaScript client for your services/ files.
+
+Type Definitions: Ask AI to infer TypeScript types from your Supabase schema or example JSON data.
+
+Code Refactoring & Optimization: Use AI to suggest improvements for existing code, identify potential bugs, or optimize performance.
+
+Debugging: When you encounter errors, paste the error message and relevant code into AI for suggestions on solutions.
+
+Learning & Documentation: Ask AI to explain concepts you're less familiar with (e.g., specific Next.js features, advanced SQL queries for RLS, Tailwind best practices).
+
+How to give clear instructions to AI:
+
+Be Specific: Instead of "build a form," say "Build a React component for adding a new tool to a team's shelf. It needs input fields for Title, Description, External Link, Category, and Tags (as a comma-separated string). Use Tailwind CSS for styling and ensure validation with Zod."
+
+Provide Context: "This form needs to call teamService.addTool() on submission, which uses supabase.from('team_shelf_tools').insert(...)."
+
+Reference Your Schema: "The team_shelf_tools table has columns title, description, external_link, category, tags (Text[]), etc."
+
+Specify Libraries: "Use React Hook Form for form management and Zod for schema validation."
+
+Break Down Complex Tasks: Don't ask for the whole app at once. Ask for individual components, functions, or RLS policies.
+
+This comprehensive plan should provide you with a clear roadmap to develop ToolShelf's MVP. Good luck!
